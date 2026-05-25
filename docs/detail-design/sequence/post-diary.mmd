@@ -1,0 +1,30 @@
+%% Daily Diary 日記投稿（当日エントリ作成）
+sequenceDiagram
+    autonumber
+    actor U as 利用者
+    participant B as ブラウザ (SC-03)
+    participant API as API Server
+    participant DB as PostgreSQL
+
+    U->>B: タイトル・本文を入力
+    U->>B: 保存ボタン
+    B->>API: POST /api/diary-entries<br/>{title, body}  (Cookie: sid)
+    API->>API: セッション検証 (sid → user_id)
+    alt 未認証
+        API-->>B: 401 E_AUTH_REQUIRED
+        B->>B: SC-01 へリダイレクト
+    end
+    API->>API: バリデーション (title 1-100, body 1-10000)
+    alt バリデーションエラー
+        API-->>B: 422 E_VALIDATION
+    end
+    API->>DB: INSERT INTO diary_entries<br/>(user_id, entry_date, title, body, created_at, updated_at)<br/>VALUES ($u, CURRENT_DATE, $t, $b, now(), now())
+    alt UNIQUE 制約違反 (BR-01)
+        DB-->>API: error
+        API-->>B: 409 E_DIARY_DUPLICATE
+        B->>B: SC-05 (今日のエントリ編集) へリダイレクト
+    else 成功
+        DB-->>API: new entry
+        API-->>B: 201 Created<br/>Location: /api/diary-entries/{today}
+        B->>B: SC-02 にトースト表示「保存しました」
+    end

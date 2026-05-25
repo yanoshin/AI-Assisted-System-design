@@ -1,0 +1,32 @@
+%% Daily Diary SSO ログイン（OIDC Authorization Code Flow + PKCE）
+sequenceDiagram
+    autonumber
+    actor U as 利用者
+    participant B as ブラウザ
+    participant API as API Server
+    participant G as Google OIDC
+
+    U->>B: 「Google でログイン」をクリック
+    B->>API: POST /api/auth/login
+    API->>API: state / nonce / PKCE code_verifier を生成
+    API->>API: 短期セッションに保存（Cookie: oidc_tmp）
+    API-->>B: 302 Location: Google 認可エンドポイント<br/>(client_id, redirect_uri, scope, state, nonce, code_challenge)
+    B->>G: GET 認可エンドポイント
+    G->>U: ログイン画面 / 同意画面
+    U->>G: 認証・同意
+    G-->>B: 302 Location: /api/auth/callback?code&state
+    B->>API: GET /api/auth/callback?code&state
+    API->>API: state を Cookie と照合（不一致なら 400 E_OIDC_INVALID）
+    API->>G: POST /token (code, code_verifier, client_id, client_secret)
+    G-->>API: id_token, access_token
+    API->>API: ID Token 検証 (署名/iss/aud/exp/nonce)
+    API->>API: (provider=google, sub) で SsoIdentity 検索
+    alt 既存ユーザ
+        API->>API: 対応する User をロード
+    else 新規ユーザ
+        API->>API: User と SsoIdentity を新規作成（同一Tx）
+    end
+    API->>API: セッション発行（tokenHash を sessions に保存、有効30日）
+    API-->>B: 302 / + Set-Cookie sid=<opaque>; httpOnly; Secure; SameSite=Lax
+    B->>API: GET / (with sid)
+    API-->>B: SC-02 ダッシュボード

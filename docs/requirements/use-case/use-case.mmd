@@ -1,0 +1,29 @@
+%% Daily Diary ユースケース図（Mermaid / flowchart 代用）
+flowchart LR
+    User((一般利用者))
+    Admin((運用管理者))
+    Google[Google IdP]
+
+    subgraph DailyDiary[Daily Diary]
+        UC1([SSO ログイン])
+        UC2([ログアウト])
+        UC3([会員登録])
+        UC4([アカウント削除])
+        UC5([当日の日記投稿])
+        UC6([過去日記閲覧])
+        UC7([過去日記編集])
+        UC8([日記削除])
+    end
+
+    User --- UC1
+    User --- UC2
+    User --- UC4
+    User --- UC5
+    User --- UC6
+    User --- UC7
+    User --- UC8
+
+    UC1 -.include.-> UC3
+    UC1 --- Google
+
+    Admin -.運用窓口.- DailyDiary

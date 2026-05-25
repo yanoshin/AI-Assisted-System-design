@@ -1,0 +1,36 @@
+%% Daily Diary ER図（論理 / Mermaid）
+erDiagram
+    users ||--o{ sso_identities : "1:N"
+    users ||--o{ sessions : "1:N"
+    users ||--o{ diary_entries : "1:N"
+
+    users {
+        bigint id PK
+        text display_name
+        text email
+        timestamptz created_at
+    }
+    sso_identities {
+        bigint id PK
+        bigint user_id FK
+        text provider
+        text provider_subject
+        timestamptz linked_at
+    }
+    sessions {
+        bigint id PK
+        bigint user_id FK
+        text token_hash
+        timestamptz issued_at
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+    diary_entries {
+        bigint id PK
+        bigint user_id FK
+        date entry_date
+        text title
+        text body
+        timestamptz created_at
+        timestamptz updated_at
+    }

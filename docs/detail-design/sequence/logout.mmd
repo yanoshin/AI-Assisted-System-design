@@ -1,0 +1,17 @@
+%% Daily Diary ログアウト
+sequenceDiagram
+    autonumber
+    actor U as 利用者
+    participant B as ブラウザ
+    participant API as API Server
+    participant DB as PostgreSQL
+
+    U->>B: ログアウトをクリック
+    B->>API: POST /api/auth/logout (Cookie: sid)
+    API->>API: sid をハッシュ化
+    API->>DB: UPDATE sessions SET revoked_at = now()<br/>WHERE token_hash = $1
+    DB-->>API: 1 row
+    API-->>B: 204 No Content<br/>Set-Cookie sid=; Max-Age=0
+    B->>B: ローカル状態を破棄
+    B->>API: GET / (Cookie なし)
+    API-->>B: SC-01 ランディング

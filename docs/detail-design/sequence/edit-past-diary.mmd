@@ -1,0 +1,34 @@
+%% Daily Diary 過去日記の編集
+sequenceDiagram
+    autonumber
+    actor U as 利用者
+    participant B as ブラウザ (SC-05)
+    participant API as API Server
+    participant DB as PostgreSQL
+
+    B->>API: GET /api/diary-entries/{date} (Cookie: sid)
+    API->>API: セッション検証
+    API->>DB: SELECT * FROM diary_entries<br/>WHERE user_id = $u AND entry_date = $date
+    alt 該当なし
+        DB-->>API: 0 rows
+        API-->>B: 404 E_NOT_FOUND
+    else 他人のエントリ（user_id 不一致）
+        Note over API: 厳密にはWHERE句で弾く設計だが<br/>パス改ざん対策として 403 を明示
+        API-->>B: 403 E_FORBIDDEN
+    else 自分のエントリ
+        DB-->>API: row
+        API-->>B: 200 OK<br/>{date, title, body, createdAt, updatedAt}
+    end
+
+    U->>B: タイトル・本文を編集
+    U->>B: 更新ボタン
+    B->>API: PUT /api/diary-entries/{date}<br/>{title, body}
+    API->>API: バリデーション
+    API->>DB: UPDATE diary_entries<br/>SET title=$t, body=$b, updated_at=now()<br/>WHERE user_id=$u AND entry_date=$date
+    alt 0 rows
+        API-->>B: 404 E_NOT_FOUND
+    else 成功
+        DB-->>API: 1 row
+        API-->>B: 200 OK + 更新後エントリ
+        B->>B: トースト「更新しました」
+    end

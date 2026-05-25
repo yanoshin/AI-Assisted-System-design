@@ -1,0 +1,35 @@
+%% Daily Diary ドメインモデル（クラス図 / Mermaid）
+classDiagram
+    class User {
+        +Long id «PK, 利用者ID»
+        +String displayName «表示名»
+        +String email «メールアドレス, IdP由来»
+        +DateTime createdAt «登録日時»
+    }
+    class SsoIdentity {
+        +Long id «PK, SSO連携ID»
+        +Long userId «FK, 利用者ID»
+        +String provider «"google" 等»
+        +String providerSubject «IdPでの一意ID»
+        +DateTime linkedAt «連携日時»
+    }
+    class Session {
+        +Long id «PK, セッションID»
+        +Long userId «FK, 利用者ID»
+        +String tokenHash «セッショントークンのハッシュ»
+        +DateTime issuedAt «発行日時»
+        +DateTime expiresAt «有効期限»
+        +DateTime revokedAt «失効日時, nullable»
+    }
+    class DiaryEntry {
+        +Long id «PK, エントリID»
+        +Long userId «FK, 利用者ID»
+        +Date entryDate «日記の日付»
+        +String title «タイトル»
+        +String body «本文»
+        +DateTime createdAt «作成日時»
+        +DateTime updatedAt «更新日時»
+    }
+    User "1" -- "0..*" SsoIdentity
+    User "1" -- "0..*" Session
+    User "1" -- "0..*" DiaryEntry

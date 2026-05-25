@@ -1,0 +1,344 @@
+openapi: 3.0.3
+info:
+  title: Daily Diary API
+  version: 0.1.0
+  description: |
+    Daily Diary (毎日の日記アプリ) の REST API 詳細仕様。
+    認証は Cookie `sid` ベース（OIDC ログイン後にサーバが発行）。
+
+servers:
+  - url: /api
+    description: 同一オリジン配下
+
+tags:
+  - name: auth
+    description: 認証・セッション
+  - name: me
+    description: 自分自身
+  - name: diary
+    description: 日記エントリ
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sid
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: E_AUTH_REQUIRED
+        message:
+          type: string
+
+    Me:
+      type: object
+      required: [id, displayName, email, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+
+    DiaryEntrySummary:
+      type: object
+      required: [date, title]
+      properties:
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+
+    DiaryEntry:
+      type: object
+      required: [date, title, body, createdAt, updatedAt]
+      properties:
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DiaryEntryInput:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+
+  responses:
+    Unauthorized:
+      description: 未認証
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: E_AUTH_REQUIRED
+            message: ログインが必要です
+    Forbidden:
+      description: 認可エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: リソースなし
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Validation:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: SSO ログイン開始
+      description: OIDC Authorization Request を構築し、ブラウザをリダイレクトする。
+      responses:
+        '302':
+          description: Google 認可エンドポイントへリダイレクト
+          headers:
+            Location:
+              schema:
+                type: string
+
+  /auth/callback:
+    get:
+      tags: [auth]
+      summary: OIDC コールバック
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: ログイン成功。Set-Cookie sid を付与し `/` にリダイレクト
+        '400':
+          description: state / nonce / 署名検証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: E_OIDC_INVALID
+                message: 認証情報の検証に失敗しました
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: ログアウト
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: セッション破棄
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me:
+    get:
+      tags: [me]
+      summary: 自分の情報を取得
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [me]
+      summary: アカウント削除（退会）
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: 削除完了
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /diary-entries:
+    get:
+      tags: [diary]
+      summary: 日記一覧（年月指定）
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: year
+          required: true
+          schema:
+            type: integer
+            example: 2026
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 5
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiaryEntrySummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [diary]
+      summary: 当日の日記を作成
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiaryEntryInput'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+              description: /api/diary-entries/{date}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 当日のエントリが既に存在する
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: E_DIARY_DUPLICATE
+                message: 今日の日記は既に作成されています
+        '422':
+          $ref: '#/components/responses/Validation'
+
+  /diary-entries/{date}:
+    parameters:
+      - in: path
+        name: date
+        required: true
+        schema:
+          type: string
+          format: date
+        description: YYYY-MM-DD
+    get:
+      tags: [diary]
+      summary: 指定日のエントリ取得
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [diary]
+      summary: 指定日のエントリ更新
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiaryEntryInput'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Validation'
+    delete:
+      tags: [diary]
+      summary: 指定日のエントリ削除（物理削除）
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

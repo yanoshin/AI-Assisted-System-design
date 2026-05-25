@@ -1,0 +1,18 @@
+%% Daily Diary 日記エントリ状態遷移
+%% MVP では「下書き」「公開」の区別なし。状態は実質「存在」「更新済」「削除済」のみ。
+stateDiagram-v2
+    [*] --> Created : POST /api/diary-entries
+    Created --> Edited : PUT /api/diary-entries/{date}
+    Edited --> Edited : 何度でも編集可能
+    Created --> Deleted : DELETE /api/diary-entries/{date}
+    Edited --> Deleted : DELETE /api/diary-entries/{date}
+    Deleted --> [*] : 物理削除（復元不可）
+
+    note right of Created
+      created_at = now()
+      updated_at = created_at
+    end note
+    note right of Edited
+      updated_at が更新される
+      created_at は不変
+    end note

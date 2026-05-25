@@ -1,0 +1,24 @@
+%% Daily Diary 会員登録（初回SSOログイン時の自動作成）
+%% ファイル名は便宜上 signup-email を踏襲しているが、MVP では SSO 専用
+sequenceDiagram
+    autonumber
+    participant API as API Server
+    participant DB as PostgreSQL
+    participant G as Google OIDC
+
+    Note over API,G: SSO ログイン成功後の分岐<br/>(sso-login.mmd の後半)
+    API->>API: ID Token 検証済み (sub, email, name)
+    API->>DB: SELECT * FROM sso_identities<br/>WHERE provider='google' AND provider_subject=$sub
+    alt SsoIdentity あり
+        DB-->>API: 既存レコード
+        API->>DB: SELECT * FROM users WHERE id = $user_id
+        DB-->>API: 既存 User
+    else SsoIdentity なし（初回ログイン）
+        DB-->>API: 0 rows
+        API->>DB: BEGIN
+        API->>DB: INSERT INTO users (display_name, email, created_at)<br/>VALUES ($name, $email, now()) RETURNING id
+        DB-->>API: new user_id
+        API->>DB: INSERT INTO sso_identities (user_id, provider, provider_subject, linked_at)<br/>VALUES ($user_id, 'google', $sub, now())
+        API->>DB: COMMIT
+    end
+    Note over API: 以降、セッション発行へ続く

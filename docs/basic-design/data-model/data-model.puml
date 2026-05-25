@@ -1,0 +1,56 @@
+@startuml Daily-Diary-Data-Model
+title Daily Diary ドメインモデル（クラス図）
+
+hide circle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+class "利用者 (User)" as User {
+  +id: Long <<PK, 利用者ID>>
+  +displayName: String <<表示名>>
+  +email: String <<メールアドレス, IdP由来>>
+  +createdAt: DateTime <<登録日時>>
+}
+
+class "SSO連携 (SsoIdentity)" as SsoIdentity {
+  +id: Long <<PK, SSO連携ID>>
+  +userId: Long <<FK, 利用者ID>>
+  +provider: String <<"google" 等>>
+  +providerSubject: String <<IdPでの一意ID>>
+  +linkedAt: DateTime <<連携日時>>
+}
+
+class "セッション (Session)" as Session {
+  +id: Long <<PK, セッションID>>
+  +userId: Long <<FK, 利用者ID>>
+  +tokenHash: String <<セッショントークンのハッシュ>>
+  +issuedAt: DateTime <<発行日時>>
+  +expiresAt: DateTime <<有効期限>>
+  +revokedAt: DateTime <<失効日時, nullable>>
+}
+
+class "日記エントリ (DiaryEntry)" as DiaryEntry {
+  +id: Long <<PK, エントリID>>
+  +userId: Long <<FK, 利用者ID>>
+  +entryDate: Date <<日記の日付>>
+  +title: String <<タイトル>>
+  +body: String <<本文>>
+  +createdAt: DateTime <<作成日時>>
+  +updatedAt: DateTime <<更新日時>>
+}
+
+User "1" -- "0..*" SsoIdentity
+User "1" -- "0..*" Session
+User "1" -- "0..*" DiaryEntry
+
+note right of DiaryEntry
+  (userId, entryDate) はユニーク
+  「1日1エントリ」制約を表す
+end note
+
+note right of SsoIdentity
+  (provider, providerSubject) は
+  ユニーク（IdP単位で一意）
+end note
+
+@enduml

@@ -1,0 +1,12 @@
+%% Daily Diary セッション状態遷移
+stateDiagram-v2
+    [*] --> Active : 発行（SSO ログイン成功）
+    Active --> Expired : expires_at 超過
+    Active --> Revoked : ログアウト or 退会
+    Expired --> [*] : BAT-01 で物理削除（24h後）
+    Revoked --> [*] : BAT-01 で物理削除（24h後）
+
+    note right of Active
+      tokenHash で識別
+      Cookie sid と1対1
+    end note

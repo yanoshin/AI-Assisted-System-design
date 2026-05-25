@@ -1,0 +1,15 @@
+%% Daily Diary 全体構成図（Mermaid）
+flowchart LR
+    Browser([ブラウザ])
+    CDN[CDN / TLS終端]
+    Web[Web SSR<br/>Next.js]
+    API[API Server<br/>REST]
+    DB[(PostgreSQL)]
+    Google[Google OIDC IdP]
+
+    Browser <-->|HTTPS| CDN
+    CDN <--> Web
+    Web <-->|HTTPS 内部| API
+    API <--> DB
+    Browser <-.OIDC リダイレクト.-> Google
+    API <-->|ID Token 検証| Google
