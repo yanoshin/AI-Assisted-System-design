@@ -1,0 +1,39 @@
+%% Daily Diary ネットワーク構成図（Mermaid / GCP 具体名）
+flowchart TB
+    Internet([Internet])
+    DNS[Cloud DNS]
+    LB[Cloud Load Balancing<br/>HTTPS]
+
+    subgraph GCP[GCP プロジェクト: dailydiary-prd]
+        subgraph Region[asia-northeast1 東京 / 単一リージョン]
+            subgraph VPC[VPC: dailydiary-vpc CIDR 10.10.0.0/16]
+                subgraph PublicSubnet[パブリックサブネット 10.10.0.0/24]
+                    LB
+                end
+
+                subgraph PrivateSubnet[プライベートサブネット 10.10.10.0/24]
+                    SVPC[Serverless VPC アクセス<br/>コネクタ]
+                    CR[Cloud Run<br/>Web + API 同居]
+                end
+
+                subgraph DataSubnet[データサブネット 10.10.20.0/24]
+                    SQL[(Cloud SQL for PostgreSQL 16<br/>Private IP のみ)]
+                end
+            end
+
+            Secrets[Secret Manager]
+            Logs[Cloud Logging]
+            Metrics[Cloud Monitoring]
+            Reg[Artifact Registry]
+            CB[Cloud Build]
+        end
+    end
+
+    Internet --> DNS --> LB
+    LB -->|Serverless NEG| CR
+    CR --> SVPC --> SQL
+    CR -.読取.-> Secrets
+    CR -.ログ.-> Logs
+    CR -.メトリクス.-> Metrics
+    CR -.OIDC HTTPS.-> Internet
+    CB --> Reg --> CR

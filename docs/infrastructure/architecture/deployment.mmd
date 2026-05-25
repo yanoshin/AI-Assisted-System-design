@@ -1,0 +1,49 @@
+%% Daily Diary 配置図（Mermaid / GCP 具体名）
+flowchart LR
+    User([利用者])
+    DevOps([運用 / 開発者])
+    Google[Google OIDC IdP<br/>外部]
+    Slack[Slack<br/>通知先]
+
+    subgraph Edge[公開層]
+        LB[Cloud Load Balancing<br/>HTTPS]
+    end
+
+    subgraph App[アプリ層 プライベート]
+        CR[Cloud Run<br/>Next.js SSR + Fastify API]
+        Jobs[Cloud Run jobs<br/>BAT-01 セッション掃除]
+    end
+
+    subgraph Data[データ層 プライベート]
+        SQL[(Cloud SQL for PostgreSQL 16<br/>Private IP)]
+    end
+
+    subgraph Ops[運用基盤]
+        Secrets[Secret Manager<br/>DB_PASSWORD / OIDC_CLIENT_SECRET / SESSION_SIGNING_KEY]
+        Logs[Cloud Logging<br/>90日保管]
+        Metrics[Cloud Monitoring]
+        Audit[Cloud Audit Logs<br/>1年保管]
+    end
+
+    subgraph CICD[CI/CD]
+        Repo[GitHub リポジトリ]
+        CB[Cloud Build]
+        Reg[Artifact Registry]
+        Sched[Cloud Scheduler<br/>BAT-01 起動]
+    end
+
+    User -->|HTTPS| LB --> CR
+    User -.OIDC.-> Google
+    CR <-->|ID Token 検証| Google
+    CR --> SQL
+    CR -.読取.-> Secrets
+    CR -.送信.-> Logs
+    CR -.メトリクス.-> Metrics
+    DevOps -->|変更| Repo
+    Repo -->|trigger| CB
+    CB --> Reg --> CR
+    CB -.deploy.-> Jobs
+    Sched -->|cron| Jobs
+    Jobs --> SQL
+    Metrics -->|alert| Slack
+    Audit -.全操作.-> Logs

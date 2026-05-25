@@ -135,23 +135,28 @@
 
 ## D. データ層
 
-### Q-DATA-01: データストアの種類は？
+### Q-DATA-01: 主データストアは？
+**目的**: アプリの永続化基盤を決める。整合性・スキーマ柔軟性・運用負荷のトレードオフ。
 **選択肢**:
-- A. **RDB のみ** — 整合性重視
-- B. **NoSQL のみ** — スキーマ柔軟性 / スケール重視
-- C. **RDB + NoSQL 併用** — 用途で分ける
-- D. **RDB + 検索** — 全文検索を別系統で
+- A. **MySQL / MariaDB** — シンプル、知見豊富、運用ノウハウ広い
+- B. **PostgreSQL** — 機能豊富（JSONB / 拡張）、複雑要件に強い
+- C. **SQLite** — 単一プロセス / 軽量、検証・組込・小規模向け
+- D. **NoSQL** — スキーマ柔軟・水平スケール重視（種類は Q-DATA-02 で）
 
-**推奨デフォルト**: A
+**推奨デフォルト**: なし（プロジェクト要件で都度選定。RDB が無難な既定値）
+**参考**: [catalog.md §DBMS / §NoSQL](catalog.md#dbms)
 
-### Q-DATA-02: DBMS は？
+### Q-DATA-02: NoSQL を選んだ場合の種類は？
+**目的**: NoSQL の中でも用途で大きく分かれるため。Q-DATA-01 で A〜C を選んだ場合は **N/A**。
 **選択肢**:
-- A. **PostgreSQL** — 機能豊富、JSON も扱える
-- B. **MySQL / MariaDB** — シンプル、知見豊富
-- C. **SQLite** — 単一プロセス / 軽量
-- D. **マネージド NewSQL** — Spanner / CockroachDB
+- A. **MongoDB** — ドキュメント、柔軟スキーマ
+- B. **DynamoDB / Firestore** — マネージド、高スケール、サーバレス
+- C. **Cassandra / ScyllaDB** — 書き込み重視・大規模分散
+- D. **Redis (永続化用途)** — キー値、超低レイテンシ
+- E. **その他 (CouchDB / Cosmos DB など)**
 
-**推奨デフォルト**: A
+**推奨デフォルト**: なし
+**参考**: [catalog.md §NoSQL](catalog.md#nosql)
 
 ### Q-DATA-03: キャッシュは？
 **選択肢**:
