@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Generated diagram images (uncomment if rendering locally)
+# *.png
+# *.svg

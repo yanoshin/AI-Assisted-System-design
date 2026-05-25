@@ -1,0 +1,132 @@
+%% ECサイト データモデル（クラス図 / Mermaid）
+classDiagram
+    class Customer["会員 (Customer)"] {
+        +Long id «PK, 会員ID»
+        +String name «氏名»
+        +String email «メールアドレス»
+        +String passwordHash «パスワードハッシュ»
+        +String phone «電話番号»
+        +DateTime createdAt «登録日時»
+    }
+    class Address["配送先住所 (Address)"] {
+        +Long id «PK, 住所ID»
+        +Long customerId «FK, 会員ID»
+        +String postalCode «郵便番号»
+        +String prefecture «都道府県»
+        +String city «市区町村»
+        +String line1 «番地»
+        +String line2 «建物名»
+        +String recipientName «宛名»
+    }
+    class Category["カテゴリ (Category)"] {
+        +Long id «PK, カテゴリID»
+        +Long parentId «FK nullable, 親カテゴリID»
+        +String name «名称»
+    }
+    class Product["商品 (Product)"] {
+        +Long id «PK, 商品ID»
+        +Long categoryId «FK, カテゴリID»
+        +String name «商品名»
+        +String description «説明»
+        +Decimal price «価格»
+        +Integer stock «在庫数»
+        +String sku «SKU»
+        +String status «状態»
+        +DateTime createdAt «登録日時»
+    }
+    class Cart["カート (Cart)"] {
+        +Long id «PK, カートID»
+        +Long customerId «FK, 会員ID»
+        +DateTime createdAt «作成日時»
+    }
+    class CartItem["カート明細 (CartItem)"] {
+        +Long id «PK, 明細ID»
+        +Long cartId «FK, カートID»
+        +Long productId «FK, 商品ID»
+        +Integer quantity «数量»
+    }
+    class Order["注文 (Order)"] {
+        +Long id «PK, 注文ID»
+        +Long customerId «FK, 会員ID»
+        +Long shippingAddressId «FK, 配送先住所ID»
+        +OrderStatus status «注文ステータス»
+        +Decimal totalAmount «合計金額»
+        +DateTime orderedAt «注文日時»
+    }
+    class OrderItem["注文明細 (OrderItem)"] {
+        +Long id «PK, 明細ID»
+        +Long orderId «FK, 注文ID»
+        +Long productId «FK, 商品ID»
+        +Integer quantity «数量»
+        +Decimal unitPrice «単価»
+    }
+    class Payment["支払 (Payment)"] {
+        +Long id «PK, 支払ID»
+        +Long orderId «FK, 注文ID»
+        +PaymentMethod method «支払方法»
+        +Decimal amount «金額»
+        +PaymentStatus status «支払ステータス»
+        +DateTime paidAt «支払日時»
+    }
+    class Shipment["配送 (Shipment)"] {
+        +Long id «PK, 配送ID»
+        +Long orderId «FK, 注文ID»
+        +String carrier «配送業者»
+        +String trackingNo «追跡番号»
+        +ShipmentStatus status «配送ステータス»
+        +DateTime shippedAt «発送日時»
+        +DateTime deliveredAt «配達日時»
+    }
+    class Review["レビュー (Review)"] {
+        +Long id «PK, レビューID»
+        +Long customerId «FK, 会員ID»
+        +Long productId «FK, 商品ID»
+        +Integer rating «評価»
+        +String comment «コメント»
+        +DateTime createdAt «投稿日時»
+    }
+    class OrderStatus["注文ステータス (OrderStatus)"] {
+        <<enumeration>>
+        PENDING
+        PAID
+        SHIPPED
+        DELIVERED
+        CANCELLED
+    }
+    class PaymentMethod["支払方法 (PaymentMethod)"] {
+        <<enumeration>>
+        CREDIT_CARD
+        BANK_TRANSFER
+        CONVENIENCE_STORE
+        COD
+    }
+    class PaymentStatus["支払ステータス (PaymentStatus)"] {
+        <<enumeration>>
+        UNPAID
+        AUTHORIZED
+        CAPTURED
+        REFUNDED
+        FAILED
+    }
+    class ShipmentStatus["配送ステータス (ShipmentStatus)"] {
+        <<enumeration>>
+        PREPARING
+        SHIPPED
+        IN_TRANSIT
+        DELIVERED
+    }
+
+    Customer "1" -- "0..*" Address
+    Customer "1" -- "0..1" Cart
+    Customer "1" -- "0..*" Order
+    Customer "1" -- "0..*" Review
+    Category "0..1" -- "0..*" Category : parent/children
+    Category "1" -- "0..*" Product
+    Cart "1" *-- "0..*" CartItem
+    Product "1" -- "0..*" CartItem
+    Order "1" *-- "1..*" OrderItem
+    Product "1" -- "0..*" OrderItem
+    Order "1" -- "1" Payment
+    Order "1" -- "0..*" Shipment
+    Address "1" -- "0..*" Order : shipping
+    Product "1" -- "0..*" Review
