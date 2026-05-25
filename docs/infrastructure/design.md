@@ -171,6 +171,108 @@ CI トリガ:
 
 ---
 
+---
+
+## 11. 環境構成（個別開発者 / dev / stg / prd）
+
+| 項目 | 採用 | 出典 Q-ID |
+|---|---|---|
+| 用意する環境（Q-ENV-01） | **個別開発者環境 + dev + stg + prd** | Q-ENV-01 |
+| 分離レベル（Q-ENV-02） | **同一 GCP プロジェクト内で命名プレフィックスで分離** | Q-ENV-02 |
+| ステージングデータ（Q-ENV-03） | **空 / 開発時に投入（合成データ）** | Q-ENV-03 |
+| フィーチャーフラグ（Q-ENV-04） | **不要（MVP）** | Q-ENV-04 |
+
+> **注**: Q-ENV-02 でプロジェクト分離（B）ではなく名前空間分離（A）を採用。**コスト・運用シンプル化** が優先。利用者数増・コンプライアンス強化のタイミングでプロジェクト分離への昇格を再評価する（ADR 化候補）。
+
+各環境の詳細:
+
+| 環境 | 用途 | スケール | データ | 認証 IdP（Google OIDC クライアント） | 命名プレフィックス |
+|---|---|---|---|---|---|
+| **個別開発者** | 各開発者の手元検証用 | 最小 / オンデマンド | 合成データ | dev 用クライアント共用 | `dev-{handle}-*`（例: `dev-yanoshin-cloudrun`） |
+| **dev** | チーム共有の検証 | 最小（min=0） | 合成データ | dev 用クライアント | `dev-*` |
+| **stg** | 受入・リリース前検証 | 本番に近い（min=1） | **空 → 開発時に合成データ投入** | stg 用クライアント | `stg-*` |
+| **prd** | 利用者向け本番 | オートスケール（min=1, max=10） | 利用者の実データ | prd 用クライアント | `prd-*` |
+
+GCP リソースの命名規則:
+```
+{env}-{role}        例: prd-cloudrun-app, stg-cloudsql-main, dev-yanoshin-cloudrun
+```
+
+環境別の Cloud SQL インスタンス分離:
+- prd: 専用 Cloud SQL インスタンス（HA は将来検討）
+- stg: 専用 Cloud SQL インスタンス（最小スペック）
+- dev: 共用 Cloud SQL インスタンス + データベース分離（または個別開発者はローカル Docker）
+- 個別開発者環境: 原則 **ローカル Docker Compose**（次項 §12）を使い、必要時のみ dev クラウドへ接続
+
+環境固有の値（CIDR・接続先・OIDC クライアントID）は IaC の `envs/<env>/` で管理（[`iac/terraform.md`](iac/terraform.md) 参照）。
+
+---
+
+## 12. ローカル開発環境
+
+| 項目 | 採用 | 出典 Q-ID |
+|---|---|---|
+| 動かす範囲（Q-LOCAL-01） | **すべてローカル**（Docker Compose で DB 含む） | Q-LOCAL-01 |
+| ローカル DB（Q-LOCAL-02） | **Docker Compose（PostgreSQL 16 公式イメージ）** | Q-LOCAL-02 |
+| 認証（Q-LOCAL-03） | **本物の Google OIDC（dev 用クライアント）** | Q-LOCAL-03 |
+| シークレット（Q-LOCAL-04） | **`.env.local`（gitignore）+ `.env.example`** | Q-LOCAL-04 |
+| セットアップ自動化（Q-LOCAL-05） | **README + Makefile** | Q-LOCAL-05 |
+
+### 12.1 セットアップ手順（Daily Diary）
+
+新規参加者の手順は README の「Getting Started」または別途 `docs/development/setup.md` にまとめる。最低限以下を含める。
+
+```
+1. リポジトリを clone
+2. 必要なツールをインストール
+   - Node.js 20 (mise / asdf 推奨)
+   - Docker Desktop
+   - gcloud CLI (本番接続が必要なときのみ)
+3. シークレットの取得
+   - cp .env.example .env.local
+   - チームの 1Password / Slack DM 等で .env.local の値を埋める
+     （特に GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SIGNING_KEY）
+4. ローカル DB の起動
+   - make db-up         # docker compose up -d postgres
+5. マイグレーション + シード
+   - make db-migrate    # prisma migrate deploy（or 採用 ORM のコマンド）
+   - make db-seed       # テストユーザー + サンプル日記を投入
+6. 開発サーバ起動
+   - make dev           # next dev（Web + API 同居）
+7. ブラウザで http://localhost:3000 を開いて Google でログイン
+```
+
+### 12.2 ローカル ⇄ クラウドの境界
+
+| 要素 | ローカル | dev クラウド | stg / prd |
+|---|---|---|---|
+| アプリ | ローカル `next dev`（Web+API 同居） | Cloud Run（dev-*） | Cloud Run（stg-* / prd-*） |
+| DB | Docker Compose `postgres:16` | Cloud SQL（共用 dev インスタンス） | Cloud SQL（環境別） |
+| 認証 IdP | 本物 Google OIDC（dev クライアント） | 本物 Google OIDC（dev クライアント） | 本物 Google OIDC（stg / prd 各クライアント） |
+| シークレット | `.env.local` | Secret Manager（`dev-*`） | Secret Manager（`stg-*` / `prd-*`） |
+
+> dev 用 OAuth クライアントは「ローカル開発」と「dev クラウド環境」で共用。リダイレクト URI に `http://localhost:3000/api/auth/callback` と `https://dev.dailydiary.example.com/api/auth/callback` を両方登録する。
+
+### 12.3 整備するファイル雛形（リポジトリ直下）
+
+| ファイル | 内容 |
+|---|---|
+| `.env.example` | `GOOGLE_CLIENT_ID=` / `GOOGLE_CLIENT_SECRET=` / `DATABASE_URL=postgres://...` / `SESSION_SIGNING_KEY=` のキー一覧（値は空） |
+| `.gitignore` | `.env.local`, `.env.*.local` を追加 |
+| `docker-compose.yml` | サービス `postgres`（image: `postgres:16`、port 5432、volume で永続化） |
+| `Makefile` | `dev` / `db-up` / `db-down` / `db-migrate` / `db-seed` / `test` / `lint` のターゲット |
+| `README.md` | 上記「Getting Started」を掲載 |
+
+### 12.4 トラブル対応の常套句
+
+| 症状 | 対処 |
+|---|---|
+| `make db-up` で port 5432 競合 | ローカルに PostgreSQL が常駐していないか確認 (`lsof -i :5432`)。あれば停止 or compose 側のポート変更 |
+| OIDC ログインでリダイレクト失敗 | Google Console の OAuth クライアントの **承認済みリダイレクト URI** に `http://localhost:3000/api/auth/callback` が登録されているか確認 |
+| `.env.local` の値を更新したのに反映されない | 開発サーバを再起動（Next.js は環境変数の変更でホットリロードしない） |
+
+---
+
 ## 関連ドキュメント
 
 - [tech-stack/decision-record.md](../tech-stack/decision-record.md) — アプリ層の選定結果
