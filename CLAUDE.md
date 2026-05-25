@@ -24,6 +24,20 @@ AIシステムの**設計ドキュメント集**。アプリケーションコ�
   2. 不足や未着手の部分を洗い出し、要約として報告する。
   3. 続けて埋めるべき内容があれば、方針を提示してから（必要に応じて確認を取り）mdファイルを生成・更新する。
 
+### 技術スタック / インフラ設計のインタビュー進行
+
+指示者が以下のいずれかを依頼した場合、Claude は対応する `interview.md` を読み、質問を順に `AskUserQuestion` で確認しながら、回答を `decision-record.md` / `design.md` / `architecture/*.mmd` に逐次反映する。
+
+- 「**技術スタックを決めたい**」「**tech-stack のインタビューを進めて**」など → [`docs/tech-stack/interview.md`](docs/tech-stack/interview.md)
+- 「**インフラ設計を決めたい**」「**infrastructure のインタビューを進めて**」など → [`docs/infrastructure/interview.md`](docs/infrastructure/interview.md)
+
+進め方:
+1. 該当の `interview.md` を読んで質問リストを把握
+2. 1〜数問ずつ `AskUserQuestion` を投げて回答を取得（4問/1メッセージが上限）
+3. 回答が出るたびに `decision-record.md` / `design.md` に反映
+4. インフラ設計でクラウド選定が決まったら、[`service-mapping.md`](docs/infrastructure/service-mapping.md) を参照して具体サービス名に展開
+5. 必要に応じて `architecture/*-template.mmd` をコピーして実構成図を起こす
+
 ### 画面UIイメージの伝達手段
 
 指示者が画面UIのイメージを伝えるときは、以下のいずれか（または併用）を使う。Claude は受け取ったイメージを、対応する `docs/design-system/screens/sc-XX-*.md` に反映する。

@@ -1,0 +1,42 @@
+%% ネットワーク構成図テンプレート（Mermaid / 抽象表記）
+%% 採用クラウドが決まったら service-mapping.md を参照して具体名に置き換える
+flowchart TB
+    Internet([Internet])
+    DNS[DNS]
+    CDN[CDN / WAF]
+
+    subgraph Region[リージョン: REPLACE_ME]
+        LB[ロードバランサ L7]
+
+        subgraph PublicSubnet[パブリックサブネット]
+            LB
+        end
+
+        subgraph PrivateSubnet[プライベートサブネット]
+            App1[Compute インスタンス 1]
+            App2[Compute インスタンス 2]
+        end
+
+        subgraph DataSubnet[データサブネット プライベート]
+            DB[(RDB プライマリ)]
+            DBR[(RDB レプリカ 任意)]
+        end
+
+        Secrets[シークレット管理]
+        Logs[ログ / メトリクス集約]
+    end
+
+    Internet --> DNS --> CDN --> LB
+    LB --> App1
+    LB --> App2
+    App1 --> DB
+    App2 --> DB
+    DB -.async.- DBR
+    App1 -.読取.-> Secrets
+    App2 -.読取.-> Secrets
+    App1 -.送信.-> Logs
+    App2 -.送信.-> Logs
+
+    %% Egress（必要最小限）
+    App1 -.OIDC.-> Internet
+    App2 -.OIDC.-> Internet

@@ -1,0 +1,53 @@
+%% 配置図テンプレート（Mermaid / 抽象表記）
+%% 採用クラウドが決まったら service-mapping.md を参照して具体名に置き換える
+flowchart LR
+    User([利用者])
+    DevOps([運用 / 開発者])
+    IdP[外部 IdP<br/>例: Google OIDC]
+
+    subgraph Edge[エッジ / 公開層]
+        CDN[CDN + WAF]
+        LB[L7 LB]
+    end
+
+    subgraph App[アプリ層 プライベート]
+        Web[Web SSR]
+        API[API Server]
+    end
+
+    subgraph Data[データ層 プライベート]
+        DB[(RDB)]
+        Cache[(キャッシュ 任意)]
+        Obj[(オブジェクトストレージ)]
+    end
+
+    subgraph Ops[運用基盤]
+        Logs[ログ集約]
+        Metrics[メトリクス]
+        Secrets[シークレット管理]
+        Bastion[Bastion / 踏み台]
+    end
+
+    subgraph CICD[CI/CD]
+        CI[CI ランナー]
+        Registry[コンテナレジストリ]
+    end
+
+    User --> CDN --> LB --> Web --> API
+    User -.OIDC.-> IdP
+    API <-->|ID Token 検証| IdP
+    API --> DB
+    API --> Cache
+    API --> Obj
+    Web -.読取.-> Secrets
+    API -.読取.-> Secrets
+    Web -.送信.-> Logs
+    API -.送信.-> Logs
+    Web -.メトリクス.-> Metrics
+    API -.メトリクス.-> Metrics
+    DevOps -->|管理| Bastion
+    Bastion -.SSM / SSH.-> Web
+    Bastion -.SSM / SSH.-> API
+    CI --> Registry
+    Registry --> Web
+    Registry --> API

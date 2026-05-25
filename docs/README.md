@@ -12,7 +12,7 @@
 | 【B】基本設計 | **どう**作るか（全体像・方式） | [基本設計書](basic-design/基本設計書.md) |
 | 【C】詳細設計 | **具体的に**どう作るか（実装直前の粒度） | [詳細設計書](detail-design/詳細設計書.md) |
 
-加えて、技術選定の経緯は [ADR (`decisions/`)](decisions/) に、画面UI/UX 設計のサンプル一式は [Design System (`design-system/`)](design-system/) に整備しています。
+加えて、技術選定の経緯は [ADR (`decisions/`)](decisions/) に、画面UI/UX 設計のサンプル一式は [Design System (`design-system/`)](design-system/) に整備しています。技術スタックとインフラの **決定プロセス（インタビュー雛形）** は [Tech Stack (`tech-stack/`)](tech-stack/) と [Infrastructure (`infrastructure/`)](infrastructure/) にあります。
 
 ## UML の使い分け（方針）
 
